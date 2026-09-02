@@ -16,6 +16,7 @@
         button { background-color: #2f855a; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 10px; }
         button:hover { background-color: #276749; }
         button:disabled { background-color: #cbd5e0; cursor: not-allowed; }
+        .error-banner { background-color: #fed7d7; color: #9b2c2c; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: none; }
     </style>
 </head>
 <body>
@@ -23,6 +24,8 @@
     <div class="card">
         <h1>Student Department Preference Portal</h1>
         <p>Select your assigned wave, find your name, and choose your 8 preferences in exact priority order.</p>
+
+        <div id="errorMessage" class="error-banner"></div>
 
         <form id="preferenceForm" onsubmit="submitForm(event)">
             <div class="form-group">
@@ -55,8 +58,11 @@
     </div>
 
     <script>
-        // REPLACE WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
-        const API_URL = "https://script.google.com/macros/s/AKfycbw52-FfMz2oz1XPd6dTSRLYNJ_0_Tf8pbqiZsafZPVXxJMm5lhmXwDqB1mklgxQskvIzw/exec";
+        // 1. Loads student list from GitHub (Zero Google Quotas)
+        const DATA_URL = "./data.json";
+
+        // 2. Google Apps Script URL (Used ONLY for form submission)
+        const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbw52-FfMz2oz1XPd6dTSRLYNJ_0_Tf8pbqiZsafZPVXxJMm5lhmXwDqB1mklgxQskvIzw/exec";
 
         let studentsData = [];
         let departmentsData = [];
@@ -67,13 +73,15 @@
 
         async function fetchData() {
             try {
-                const res = await fetch(API_URL);
+                const res = await fetch(DATA_URL);
+                if (!res.ok) throw new Error("File not found");
+                
                 const data = await res.json();
                 studentsData = data.students;
                 departmentsData = data.departments;
                 buildWishDropdowns();
             } catch (err) {
-                alert("Failed to connect to database. Ensure Web App URL is configured.");
+                showError("Failed to load student data. Please make sure the 'data.json' file is uploaded to GitHub.");
             }
         }
 
@@ -143,13 +151,25 @@
             document.getElementById('submitBtn').innerText = "Submitting...";
             document.getElementById('submitBtn').disabled = true;
 
-            await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ id, preferences })
-            });
+            try {
+                await fetch(SUBMIT_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ id, preferences })
+                });
 
-            alert("Preferences submitted successfully!");
-            location.reload();
+                alert("Preferences submitted successfully!");
+                location.reload();
+            } catch (err) {
+                alert("Submission failed. Please check your internet connection and try again.");
+                document.getElementById('submitBtn').innerText = "Submit Preferences";
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+
+        function showError(msg) {
+            const errDiv = document.getElementById('errorMessage');
+            errDiv.innerText = msg;
+            errDiv.style.display = 'block';
         }
     </script>
 </body>
