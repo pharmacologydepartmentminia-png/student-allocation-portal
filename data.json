@@ -1,0 +1,10 @@
+{
+  "students": [
+    {"id": "101", "name": "Alice", "gpa": 3.9, "wave": 1, "submitted": false},
+    {"id": "102", "name": "Bob", "gpa": 3.7, "wave": 1, "submitted": false}
+  ],
+  "departments": [
+    {"name": "Computer Science"},
+    {"name": "Information Systems"}
+  ]
+}
