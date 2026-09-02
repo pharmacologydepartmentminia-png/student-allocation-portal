@@ -38,7 +38,7 @@ waveSelect.addEventListener('change', function () {
     waveData.students.forEach(student => {
       const option = document.createElement('option');
       option.value = student.id;
-      option.textContent = `${student.name} (GPA: ${student.gpa})`;
+      option.textContent = student.name;
       studentSelect.appendChild(option);
     });
     studentSelect.disabled = false;
