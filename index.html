@@ -1,176 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Department Preference Portal</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
-        .card { background: white; padding: 25px; border-radius: 10px; max-width: 800px; margin: 0 auto 20px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1, h3 { color: #1a365d; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
-        select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        .wishes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        @media (max-width: 600px) { .wishes-grid { grid-template-columns: 1fr; } }
-        button { background-color: #2f855a; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 10px; }
-        button:hover { background-color: #276749; }
-        button:disabled { background-color: #cbd5e0; cursor: not-allowed; }
-        .error-banner { background-color: #fed7d7; color: #9b2c2c; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: none; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Department Preference Form</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f7f6; }
+    .container { max-width: 600px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; }
+    select, input, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+    .pref-group { margin-top: 10px; display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 10px; }
+    button { background-color: #007bff; color: white; font-size: 16px; border: none; cursor: pointer; margin-top: 15px; }
+    button:hover { background-color: #0056b3; }
+  </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>Student Department Preference Portal</h1>
-        <p>Select your assigned wave, find your name, and choose your 8 preferences in exact priority order.</p>
-
-        <div id="errorMessage" class="error-banner"></div>
-
-        <form id="preferenceForm" onsubmit="submitForm(event)">
-            <div class="form-group">
-                <label>1. Select Your Wave:</label>
-                <select id="waveSelect" required onchange="filterStudentsByWave()">
-                    <option value="">-- Choose Wave --</option>
-                    <option value="1">Wave 1</option>
-                    <option value="2">Wave 2</option>
-                    <option value="3">Wave 3</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>2. Select Your Name:</label>
-                <select id="studentSelect" required onchange="onStudentSelect()" disabled>
-                    <option value="">-- Select Wave First --</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Recorded GPA:</label>
-                <input type="text" id="gpaDisplay" readonly style="background-color: #edf2f7;" placeholder="Select your name above">
-            </div>
-
-            <h3>Department Preferences (Ranked 1 to 8):</h3>
-            <div id="wishesContainer" class="wishes-grid"></div>
-
-            <button type="submit" id="submitBtn" disabled>Submit Preferences</button>
-        </form>
+<div class="container">
+  <h2>Student Department Preference Form</h2>
+  
+  <form id="preferenceForm">
+    <!-- Step 1: Select Wave -->
+    <div class="form-group">
+      <label for="waveSelect">1. Select Wave:</label>
+      <select id="waveSelect" required>
+        <option value="">-- Select Wave --</option>
+        <option value="1">Wave 1</option>
+        <option value="2">Wave 2</option>
+        <option value="3">Wave 3</option>
+      </select>
     </div>
 
-    <script>
-        // 1. Loads student list from GitHub (Zero Google Quotas)
-        const DATA_URL = "./data.json";
+    <!-- Step 2: Select Student -->
+    <div class="form-group">
+      <label for="studentSelect">2. Select Your Name:</label>
+      <select id="studentSelect" disabled required>
+        <option value="">-- Choose Wave First --</option>
+      </select>
+    </div>
 
-        // 2. Google Apps Script URL (Used ONLY for form submission)
-        const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbxrqdTBMwvsA09fOSAg4wtaGrzz3b4ZtDzmJE5S3iEN3Khy0ZoGS8TQDuSB4_wPpw5skw/exec";
+    <!-- Step 3: Select Preferences -->
+    <div id="preferencesContainer" style="display: none;">
+      <label>3. Select Department Preferences (Ranked 1 to 8):</label>
+      <div id="preferencesList"></div>
+      <button type="submit">Submit Preferences</button>
+    </div>
+  </form>
+</div>
 
-        let studentsData = [];
-        let departmentsData = [];
-
-        window.onload = function() {
-            fetchData();
-        };
-
-        async function fetchData() {
-            try {
-                const res = await fetch(DATA_URL);
-                if (!res.ok) throw new Error("File not found");
-                
-                const data = await res.json();
-                studentsData = data.students;
-                departmentsData = data.departments;
-                buildWishDropdowns();
-            } catch (err) {
-                showError("Failed to load student data. Please make sure the 'data.json' file is uploaded to GitHub.");
-            }
-        }
-
-        function filterStudentsByWave() {
-            const selectedWave = parseInt(document.getElementById('waveSelect').value);
-            const studentSelect = document.getElementById('studentSelect');
-            
-            if (!selectedWave) {
-                studentSelect.innerHTML = '<option value="">-- Select Wave First --</option>';
-                studentSelect.disabled = true;
-                return;
-            }
-
-            const filtered = studentsData.filter(s => s.wave === selectedWave);
-            studentSelect.innerHTML = '<option value="">-- Choose Your Name --</option>';
-
-            filtered.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = `${s.name} ${s.submitted ? '(Submitted)' : ''}`;
-                if (s.submitted) opt.disabled = true;
-                studentSelect.appendChild(opt);
-            });
-
-            studentSelect.disabled = false;
-        }
-
-        function onStudentSelect() {
-            const id = document.getElementById('studentSelect').value;
-            const student = studentsData.find(s => s.id === id);
-            document.getElementById('gpaDisplay').value = student ? student.gpa.toFixed(2) : '';
-            document.getElementById('submitBtn').disabled = !student;
-        }
-
-        function buildWishDropdowns() {
-            const container = document.getElementById('wishesContainer');
-            container.innerHTML = '';
-
-            for (let idx = 0; idx < 8; idx++) {
-                const div = document.createElement('div');
-                div.className = 'form-group';
-                let options = `<option value="">-- Choice ${idx + 1} --</option>`;
-                departmentsData.forEach(dept => {
-                    options += `<option value="${dept.name}">${dept.name}</option>`;
-                });
-                div.innerHTML = `<label>Preference ${idx + 1}:</label><select class="wish-select" required>${options}</select>`;
-                container.appendChild(div);
-            }
-        }
-
-        async function submitForm(e) {
-            e.preventDefault();
-            const id = document.getElementById('studentSelect').value;
-            const selects = document.querySelectorAll('.wish-select');
-            const preferences = Array.from(selects).map(s => s.value);
-
-            if (preferences.some(p => p === "")) {
-                alert("Please select a department for all 8 preferences.");
-                return;
-            }
-
-            if (new Set(preferences).size !== preferences.length) {
-                alert("Please choose 8 different departments with no duplicates.");
-                return;
-            }
-
-            document.getElementById('submitBtn').innerText = "Submitting...";
-            document.getElementById('submitBtn').disabled = true;
-
-            try {
-                await fetch(SUBMIT_URL, {
-                    method: "POST",
-                    body: JSON.stringify({ id, preferences })
-                });
-
-                alert("Preferences submitted successfully!");
-                location.reload();
-            } catch (err) {
-                alert("Submission failed. Please check your internet connection and try again.");
-                document.getElementById('submitBtn').innerText = "Submit Preferences";
-                document.getElementById('submitBtn').disabled = false;
-            }
-        }
-
-        function showError(msg) {
-            const errDiv = document.getElementById('errorMessage');
-            errDiv.innerText = msg;
-            errDiv.style.display = 'block';
-        }
-    </script>
+<script src="script.js"></script>
 </body>
 </html>
