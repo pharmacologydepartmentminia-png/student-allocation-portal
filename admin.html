@@ -244,6 +244,12 @@ async function runAllocation() {
 // 3. Export Allocation to CSV
 function exportCSV() {
   if (finalAllocation.length === 0) return;
+ 
+    <div class="btn-group">
+  <button id="runBtn" onclick="runAllocation()">Run GPA Allocation</button>
+  <button id="exportBtn" class="btn-export" onclick="exportCSV()" style="display:none;">Export to CSV</button>
+  <button id="saveSheetBtn" style="display:none; background-color: #6f42c1;" onclick="saveToSheet()">Save to Google Sheet</button>
+</div>
 
   // UTF-8 BOM prefix ensures Arabic student names display correctly in Excel
   let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
