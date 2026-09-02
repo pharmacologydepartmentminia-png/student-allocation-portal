@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Wave Allocation System (Dedicated Capacities)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 800px; margin: 0 auto 20px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1, h2, h3, h4 { color: #1a365d; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        .wishes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 600px) { .wishes-grid { grid-template-columns: 1fr; } }
+        button { background-color: #2f855a; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #276749; }
+        button:disabled { background-color: #cbd5e0; cursor: not-allowed; }
+        .admin-btn { background-color: #2b6cb0; margin-top: 10px; }
+        .admin-btn:hover { background-color: #2c5282; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+        th { background-color: #edf2f7; }
+    </style>
+</head>
+<body>
+
+    <!-- Student Interface -->
+    <div class="card">
+        <h1>Student Department Preference Portal</h1>
+        <p>Select your assigned wave, find your name, and choose your 8 preferences in exact priority order.</p>
+
+        <form id="preferenceForm" onsubmit="submitForm(event)">
+            <div class="form-group">
+                <label>1. Select Your Wave:</label>
+                <select id="waveSelect" required onchange="filterStudentsByWave()">
+                    <option value="">-- Choose Wave --</option>
+                    <option value="1">Wave 1</option>
+                    <option value="2">Wave 2</option>
+                    <option value="3">Wave 3</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>2. Select Your Name:</label>
+                <select id="studentSelect" required onchange="onStudentSelect()" disabled>
+                    <option value="">-- Select Wave First --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Recorded GPA:</label>
+                <input type="text" id="gpaDisplay" readonly style="background-color: #edf2f7;" placeholder="Select your name above">
+            </div>
+
+            <h3>Department Preferences (Ranked 1 to 8):</h3>
+            <div id="wishesContainer" class="wishes-grid"></div>
+
+            <button type="submit" id="submitBtn" disabled>Submit Preferences</button>
+        </form>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="card">
+        <h2>Admin Allocation Panel (Faculty Only)</h2>
+        <div class="form-group">
+            <label>Select Wave to Process:</label>
+            <select id="adminWaveSelect">
+                <option value="1">Wave 1</option>
+                <option value="2">Wave 2</option>
+                <option value="3">Wave 3</option>
+            </select>
+        </div>
+        <button class="admin-btn" onclick="runAllocation()">Generate Final Wave Lists</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // REPLACE WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbzht-0EoVim45GL91s6M7FZa8a-EbjfRWP2G6QalqGG15VBQ2ypvhA3tLD5na5d959y0A/exec";
+
+        let studentsData = [];
+        let departmentsData = [];
+
+        window.onload = function() {
+            fetchData();
+        };
+
+        async function fetchData() {
+            try {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                studentsData = data.students;
+                departmentsData = data.departments;
+                buildWishDropdowns();
+            } catch (err) {
+                alert("Failed to connect to database. Ensure Web App URL is configured.");
+            }
+        }
+
+        function filterStudentsByWave() {
+            const selectedWave = parseInt(document.getElementById('waveSelect').value);
+            const studentSelect = document.getElementById('studentSelect');
+            
+            if (!selectedWave) {
+                studentSelect.innerHTML = '<option value="">-- Select Wave First --</option>';
+                studentSelect.disabled = true;
+                return;
+            }
+
+            const filtered = studentsData.filter(s => s.wave === selectedWave);
+            studentSelect.innerHTML = '<option value="">-- Choose Your Name --</option>';
+
+            filtered.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = `${s.name} ${s.submitted ? '(Submitted)' : ''}`;
+                if (s.submitted) opt.disabled = true;
+                studentSelect.appendChild(opt);
+            });
+
+            studentSelect.disabled = false;
+        }
+
+        function onStudentSelect() {
+            const id = document.getElementById('studentSelect').value;
+            const student = studentsData.find(s => s.id === id);
+            document.getElementById('gpaDisplay').value = student ? student.gpa.toFixed(2) : '';
+            document.getElementById('submitBtn').disabled = !student;
+        }
+
+        function buildWishDropdowns() {
+            const container = document.getElementById('wishesContainer');
+            container.innerHTML = '';
+
+            for (let idx = 0; idx < 8; idx++) {
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                let options = `<option value="">-- Choice ${idx + 1} --</option>`;
+                departmentsData.forEach(dept => {
+                    options += `<option value="${dept.name}">${dept.name}</option>`;
+                });
+                div.innerHTML = `<label>Preference ${idx + 1}:</label><select class="wish-select" required>${options}</select>`;
+                container.appendChild(div);
+            }
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+            const id = document.getElementById('studentSelect').value;
+            const selects = document.querySelectorAll('.wish-select');
+            const preferences = Array.from(selects).map(s => s.value);
+
+            if (preferences.some(p => p === "")) {
+                alert("Please select a department for all 8 preferences.");
+                return;
+            }
+
+            if (new Set(preferences).size !== preferences.length) {
+                alert("Please choose 8 different departments with no duplicates.");
+                return;
+            }
+
+            document.getElementById('submitBtn').innerText = "Submitting...";
+            document.getElementById('submitBtn').disabled = true;
+
+            await fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify({ id, preferences })
+            });
+
+            alert("Preferences submitted successfully!");
+            location.reload();
+        }
+
+        function runAllocation() {
+            const targetWave = parseInt(document.getElementById('adminWaveSelect').value);
+            const allocations = {};
+            const capacities = {};
+
+            // Map capacity property depending on targetWave
+            const capKey = `wave${targetWave}_cap`;
+
+            departmentsData.forEach(d => {
+                capacities[d.name] = d[capKey] || 0;
+                allocations[d.name] = [];
+            });
+            allocations['Unassigned'] = [];
+
+            // Filter submitted students strictly by active wave
+            let targetStudents = studentsData.filter(s => s.submitted && s.wave === targetWave);
+
+            // Sort by GPA descending
+            targetStudents.sort((a, b) => b.gpa - a.gpa);
+
+            // Execute allocation strictly using targetWave capacity limits
+            targetStudents.forEach(s => {
+                let placed = false;
+                for (let pref of s.preferences) {
+                    if (capacities[pref] !== undefined && allocations[pref].length < capacities[pref]) {
+                        allocations[pref].push(s);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) allocations['Unassigned'].push(s);
+            });
+
+            // Display Output
+            const div = document.getElementById('results');
+            div.innerHTML = `<h3>Allocation Results for Wave ${targetWave}</h3>`;
+            
+            for (let dept in allocations) {
+                if (dept === 'Unassigned' && allocations[dept].length === 0) continue;
+                let capDisplay = dept === 'Unassigned' ? 'N/A' : capacities[dept];
+                let html = `<h4>${dept} (${allocations[dept].length} / Cap: ${capDisplay})</h4>
+                            <table><tr><th>Rank</th><th>ID</th><th>Name</th><th>GPA</th></tr>`;
+                allocations[dept].forEach((s, i) => {
+                    html += `<tr><td>${i+1}</td><td>${s.id}</td><td>${s.name}</td><td>${s.gpa.toFixed(2)}</td></tr>`;
+                });
+                html += '</table>';
+                div.innerHTML += html;
+            }
+        }
+    </script>
+</body>
+</html>
