@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Department Choice Form</title>
+  <title>Student Preference Form</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -13,15 +13,15 @@
       padding: 20px;
     }
     .form-container {
-      max-width: 600px;
-      margin: 30px auto;
+      max-width: 650px;
+      margin: 20px auto;
       background: #ffffff;
       padding: 30px;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    h2 { color: #2c3e50; margin-top: 0; }
-    .form-group { margin-bottom: 18px; }
+    h2, h3 { color: #2c3e50; margin-top: 0; }
+    .form-group { margin-bottom: 16px; }
     label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; }
     input, select {
       width: 100%;
@@ -30,7 +30,12 @@
       border-radius: 4px;
       font-size: 14px;
     }
-    input.arabic-input { direction: rtl; text-align: right; }
+    input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
+    .pref-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
     button {
       width: 100%;
       background-color: #007bff;
@@ -41,6 +46,7 @@
       font-size: 16px;
       font-weight: bold;
       cursor: pointer;
+      margin-top: 15px;
     }
     button:hover { background-color: #0056b3; }
     #status {
@@ -57,99 +63,212 @@
 <div class="form-container">
   <h2>Department Preference Form</h2>
   
-  <form id="preferenceForm" onsubmit="handleFormSubmit(event)">
-    <div class="form-group">
-      <label for="studentId">Student ID:</label>
-      <input type="text" id="studentId" required placeholder="e.g. 2024101">
-    </div>
+  <div id="loadingMsg">Loading student records...</div>
 
+  <form id="preferenceForm" style="display:none;" onsubmit="handleFormSubmit(event)">
+    
+    <!-- STEP 1: WAVE SELECTION -->
     <div class="form-group">
-      <label for="studentName">Student Name (Arabic):</label>
-      <input type="text" id="studentName" class="arabic-input" required placeholder="أدخل الاسم بالكامل">
-    </div>
-
-    <div class="form-group">
-      <label for="studentGpa">GPA:</label>
-      <input type="number" step="0.01" min="0" max="4.0" id="studentGpa" required placeholder="e.g. 3.45">
-    </div>
-
-    <div class="form-group">
-      <label for="studentWave">Wave:</label>
-      <select id="studentWave" required>
+      <label for="studentWave">1. Select Wave:</label>
+      <select id="studentWave" onchange="onWaveChange()" required>
+        <option value="">-- Select Wave --</option>
         <option value="1">Wave 1</option>
         <option value="2">Wave 2</option>
+        <option value="3">Wave 3</option>
       </select>
     </div>
 
+    <!-- STEP 2: STUDENT SELECTION -->
     <div class="form-group">
-      <label for="pref1">1st Department Choice:</label>
-      <select id="pref1" required>
-        <option value="">Select Department...</option>
-        <option value="Pharmaceutics">Pharmaceutics</option>
-        <option value="Pharmacology">Pharmacology</option>
-        <option value="Medicinal chemistry">Medicinal chemistry</option>
-        <option value="Pharmacy practice">Pharmacy practice</option>
-        <option value="Microbiology">Microbiology</option>
-        <option value="Pharmacognosy">Pharmacognosy</option>
-        <option value="Biochemistry">Biochemistry</option>
-        <option value="Analytical chemistry">Analytical chemistry</option>
+      <label for="studentSelect">2. Select Your Name:</label>
+      <select id="studentSelect" onchange="onStudentSelect()" disabled required>
+        <option value="">-- Select Wave First --</option>
       </select>
     </div>
 
-    <div class="form-group">
-      <label for="pref2">2nd Department Choice:</label>
-      <select id="pref2" required>
-        <option value="">Select Department...</option>
-        <option value="Pharmaceutics">Pharmaceutics</option>
-        <option value="Pharmacology">Pharmacology</option>
-        <option value="Medicinal chemistry">Medicinal chemistry</option>
-        <option value="Pharmacy practice">Pharmacy practice</option>
-        <option value="Microbiology">Microbiology</option>
-        <option value="Pharmacognosy">Pharmacognosy</option>
-        <option value="Biochemistry">Biochemistry</option>
-        <option value="Analytical chemistry">Analytical chemistry</option>
-      </select>
+    <!-- AUTO-FILLED DETAILS -->
+    <div class="pref-grid">
+      <div class="form-group">
+        <label for="studentId">Student ID:</label>
+        <input type="text" id="studentId" readonly required placeholder="Auto-filled">
+      </div>
+      <div class="form-group">
+        <label for="studentGpa">GPA:</label>
+        <input type="text" id="studentGpa" readonly required placeholder="Auto-filled">
+      </div>
     </div>
 
-    <button type="submit" id="submitBtn">Submit Preferences</button>
+    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+    <!-- STEP 3: 8 PREFERENCES -->
+    <h3>3. Select 8 Department Preferences (Ranked)</h3>
+    
+    <div class="pref-grid">
+      <div class="form-group">
+        <label for="pref1">1st Preference:</label>
+        <select class="dept-pref" id="pref1" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref2">2nd Preference:</label>
+        <select class="dept-pref" id="pref2" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref3">3rd Preference:</label>
+        <select class="dept-pref" id="pref3" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref4">4th Preference:</label>
+        <select class="dept-pref" id="pref4" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref5">5th Preference:</label>
+        <select class="dept-pref" id="pref5" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref6">6th Preference:</label>
+        <select class="dept-pref" id="pref6" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref7">7th Preference:</label>
+        <select class="dept-pref" id="pref7" required></select>
+      </div>
+      <div class="form-group">
+        <label for="pref8">8th Preference:</label>
+        <select class="dept-pref" id="pref8" required></select>
+      </div>
+    </div>
+
+    <button type="submit" id="submitBtn">Submit All 8 Preferences</button>
   </form>
 
   <div id="status"></div>
 </div>
 
 <script>
-// Paste your exact Web App Deployment URL here
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyC0f5f1oVLCZeTUzp49ticE3yA0QiqDskrOY-knMLGIgVIf7tWEwxgtvnT__HDH-xfZA/exec';
 
-async function handleFormSubmit(event) {
-  event.preventDefault();
-  
-  const statusEl = document.getElementById('status');
-  const submitBtn = document.getElementById('submitBtn');
-  
-  const p1 = document.getElementById('pref1').value;
-  const p2 = document.getElementById('pref2').value;
+const DEPARTMENTS = [
+  "Pharmaceutics",
+  "Pharmacology",
+  "Medicinal chemistry",
+  "Pharmacy practice",
+  "Microbiology",
+  "Pharmacognosy",
+  "Biochemistry",
+  "Analytical chemistry"
+];
 
-  if (p1 === p2) {
-    statusEl.style.color = 'red';
-    statusEl.textContent = 'Please select two different departments.';
+let allStudents = [];
+
+// Initialize Form and Dropdowns
+async function initForm() {
+  const loading = document.getElementById('loadingMsg');
+  try {
+    const res = await fetch(`${SCRIPT_URL}?t=${new Date().getTime()}`);
+    const data = await res.json();
+    allStudents = data.students || [];
+
+    // Populate Department Dropdowns
+    const prefDropdowns = document.querySelectorAll('.dept-pref');
+    prefDropdowns.forEach((select, idx) => {
+      select.innerHTML = `<option value="">-- Choose #${idx + 1} --</option>` + 
+        DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join('');
+    });
+
+    loading.style.display = 'none';
+    document.getElementById('preferenceForm').style.display = 'block';
+  } catch (err) {
+    loading.textContent = 'Failed to load student database. Please refresh.';
+    console.error(err);
+  }
+}
+
+// When Wave Dropdown Changes
+function onWaveChange() {
+  const selectedWave = document.getElementById('studentWave').value;
+  const studentSelect = document.getElementById('studentSelect');
+  
+  // Clear ID & GPA
+  document.getElementById('studentId').value = '';
+  document.getElementById('studentGpa').value = '';
+
+  if (!selectedWave) {
+    studentSelect.innerHTML = '<option value="">-- Select Wave First --</option>';
+    studentSelect.disabled = true;
     return;
   }
 
+  // Filter students for selected Wave
+  const waveStudents = allStudents.filter(s => String(s.wave) === String(selectedWave));
+  
+  if (waveStudents.length === 0) {
+    studentSelect.innerHTML = '<option value="">No students found in this Wave</option>';
+    studentSelect.disabled = true;
+    return;
+  }
+
+  studentSelect.innerHTML = '<option value="">-- Select Name --</option>' + 
+    waveStudents.map(s => `<option value="${s.id}">${s.name} (ID: ${s.id})</option>`).join('');
+  studentSelect.disabled = false;
+}
+
+// When Student Name Dropdown Changes
+function onStudentSelect() {
+  const studentId = document.getElementById('studentSelect').value;
+  const student = allStudents.find(s => String(s.id) === String(studentId));
+
+  if (student) {
+    document.getElementById('studentId').value = student.id;
+    document.getElementById('studentGpa').value = typeof student.gpa === 'number' ? student.gpa.toFixed(2) : student.gpa;
+  } else {
+    document.getElementById('studentId').value = '';
+    document.getElementById('studentGpa').value = '';
+  }
+}
+
+// Submit Handler
+async function handleFormSubmit(event) {
+  event.preventDefault();
+  const statusEl = document.getElementById('status');
+  const submitBtn = document.getElementById('submitBtn');
+
+  // Collect preferences
+  const prefs = [];
+  for (let i = 1; i <= 8; i++) {
+    const val = document.getElementById(`pref${i}`).value;
+    if (val) prefs.push(val);
+  }
+
+  // Ensure all 8 are selected
+  if (prefs.length < 8) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = 'Please select all 8 preferences.';
+    return;
+  }
+
+  // Check for duplicates
+  const uniquePrefs = new Set(prefs);
+  if (uniquePrefs.size < 8) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = 'Duplicates detected! Each of the 8 preferences must be unique.';
+    return;
+  }
+
+  const selectedStudentObj = allStudents.find(s => String(s.id) === document.getElementById('studentId').value);
+
   const payload = {
-    id: document.getElementById('studentId').value.trim(),
-    name: document.getElementById('studentName').value.trim(),
+    id: document.getElementById('studentId').value,
+    name: selectedStudentObj ? selectedStudentObj.name : '',
     gpa: parseFloat(document.getElementById('studentGpa').value),
     wave: document.getElementById('studentWave').value,
-    preferences: [p1, p2]
+    preferences: prefs
   };
 
   statusEl.style.color = '#007bff';
-  statusEl.textContent = 'Submitting your choices...';
+  statusEl.textContent = 'Submitting choices...';
   submitBtn.disabled = true;
 
   try {
-    // Mode: 'no-cors' resolves Google Apps Script HTTP redirect blocks
     await fetch(SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -160,15 +279,18 @@ async function handleFormSubmit(event) {
     statusEl.style.color = 'green';
     statusEl.textContent = 'Preferences submitted successfully!';
     document.getElementById('preferenceForm').reset();
+    document.getElementById('studentSelect').disabled = true;
 
   } catch (err) {
     console.error('Submission error:', err);
     statusEl.style.color = 'red';
-    statusEl.textContent = 'Failed to submit. Please check your network connection.';
+    statusEl.textContent = 'Submission failed. Please check your connection.';
   } finally {
     submitBtn.disabled = false;
   }
 }
+
+document.addEventListener('DOMContentLoaded', initForm);
 </script>
 
 </body>
