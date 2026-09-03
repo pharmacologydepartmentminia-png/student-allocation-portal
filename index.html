@@ -1,58 +1,186 @@
-function doGet(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // 1. Fetch Students data (assuming main sheet is first tab)
-  var studentSheet = ss.getSheets()[0];
-  var studentRows = studentSheet.getDataRange().getValues();
-  
-  var students = [];
-  // Skip header row
-  for (var i = 1; i < studentRows.length; i++) {
-    if (studentRows[i][1]) { // Ensure student name exists
-      students.push({
-        id: studentRows[i][0],      // Column A: ID
-        name: studentRows[i][1],    // Column B: Name
-        wave: studentRows[i][3]     // Column D: Wave
-      });
-    }
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Department Preference Form</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        h1 { color: #1a365d; text-align: center; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3748; }
+        select { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 15px; background-color: #fff; }
+        select:disabled { background-color: #edf2f7; cursor: not-allowed; }
+        button { background-color: #2f855a; color: white; border: none; padding: 14px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #276749; }
+        button:disabled { background-color: #a0aec0; cursor: not-allowed; }
+        #loadingMsg { text-align: center; color: #3182ce; font-weight: bold; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
 
-  // 2. Fetch Departments data from 'departments' sheet
-  var deptSheet = ss.getSheetByName("departments");
-  var depts = [];
-  if (deptSheet) {
-    var deptRows = deptSheet.getDataRange().getValues();
-    for (var j = 1; j < deptRows.length; j++) {
-      if (deptRows[j][0]) {
-        depts.push(deptRows[j][0]);  // Column A: Department Name
-      }
-    }
-  }
+    <div class="container">
+        <h1>Department Preference Form</h1>
+        <div id="loadingMsg">Loading options from Google Sheets...</div>
 
-  var result = {
-    students: students,
-    departments: depts
-  };
+        <form id="preferenceForm" onsubmit="submitForm(event)" style="display:none;">
+            <!-- Step 1: Select Wave -->
+            <div class="form-group">
+                <label for="waveSelect">1. Select Your Wave Number (Column D):</label>
+                <select id="waveSelect" required onchange="filterStudentsByWave()">
+                    <option value="">-- Choose Wave --</option>
+                </select>
+            </div>
 
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .mimeType(ContentService.MimeType.JSON);
-}
+            <!-- Step 2: Select Student -->
+            <div class="form-group">
+                <label for="studentSelect">2. Select Your Name (Column B):</label>
+                <select id="studentSelect" required disabled>
+                    <option value="">-- Select Wave First --</option>
+                </select>
+            </div>
 
-function doPost(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("Submissions") || ss.getSheets()[0];
-  var data = JSON.parse(e.postData.contents);
-  
-  sheet.appendRow([
-    new Date(),
-    data.wave,
-    data.id,
-    data.name,
-    data.preferences.join(', ')
-  ]);
-  
-  return ContentService
-    .createTextOutput(JSON.stringify({ "result": "success" }))
-    .mimeType(ContentService.MimeType.JSON);
-}
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;">
+
+            <!-- Step 3: Select Department Preferences -->
+            <div id="departmentsContainer"></div>
+
+            <button type="submit" id="submitBtn">Submit My Preferences</button>
+        </form>
+    </div>
+
+    <script>
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyC0f5f1oVLCZeTUzp49ticE3yA0QiqDskrOY-knMLGIgVIf7tWEwxgtvnT__HDH-xfZA/exec";
+
+        let allStudents = [];
+        let allDepartments = [];
+
+        // Fetch data automatically on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch(GOOGLE_SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    allStudents = data.students || [];
+                    allDepartments = data.departments || [];
+
+                    populateWaveDropdown();
+                    buildDepartmentDropdowns();
+
+                    document.getElementById('loadingMsg').style.display = 'none';
+                    document.getElementById('preferenceForm').style.display = 'block';
+                })
+                .catch(err => {
+                    console.error("Error fetching sheet data:", err);
+                    document.getElementById('loadingMsg').innerText = "Failed to load data from Google Sheet. Check permissions.";
+                    document.getElementById('loadingMsg').style.color = "#c53030";
+                });
+        });
+
+        function populateWaveDropdown() {
+            const waveSelect = document.getElementById('waveSelect');
+            const waves = [...new Set(allStudents.map(s => s.wave))].filter(Boolean).sort();
+
+            waves.forEach(wave => {
+                const opt = document.createElement('option');
+                opt.value = wave;
+                opt.textContent = `Wave ${wave}`;
+                waveSelect.appendChild(opt);
+            });
+        }
+
+        function filterStudentsByWave() {
+            const selectedWave = document.getElementById('waveSelect').value;
+            const studentSelect = document.getElementById('studentSelect');
+
+            studentSelect.innerHTML = '<option value="">-- Choose Your Name --</option>';
+
+            if (!selectedWave) {
+                studentSelect.disabled = true;
+                return;
+            }
+
+            const filteredStudents = allStudents.filter(s => String(s.wave) === String(selectedWave));
+
+            filteredStudents.forEach(student => {
+                const opt = document.createElement('option');
+                opt.value = student.id;
+                opt.setAttribute('data-name', student.name);
+                opt.textContent = `${student.name} (ID: ${student.id})`;
+                studentSelect.appendChild(opt);
+            });
+
+            studentSelect.disabled = false;
+        }
+
+        function buildDepartmentDropdowns() {
+            const container = document.getElementById('departmentsContainer');
+            container.innerHTML = '<h3>3. Select Department Preferences</h3>';
+
+            allDepartments.forEach((_, idx) => {
+                const div = document.createElement('div');
+                div.className = 'form-group';
+
+                let options = `<option value="">-- Choose Rank ${idx + 1} --</option>`;
+                allDepartments.forEach(dept => {
+                    options += `<option value="${dept}">${dept}</option>`;
+                });
+
+                div.innerHTML = `
+                    <label>Preference ${idx + 1}:</label>
+                    <select class="dept-preference" required>${options}</select>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function submitForm(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            const wave = document.getElementById('waveSelect').value;
+            const studentSelect = document.getElementById('studentSelect');
+            const studentId = studentSelect.value;
+            const studentName = studentSelect.options[studentSelect.selectedIndex].getAttribute('data-name');
+
+            const preferenceSelects = document.querySelectorAll('.dept-preference');
+            const preferences = [];
+            preferenceSelects.forEach(s => {
+                if (s.value) preferences.push(s.value);
+            });
+
+            if (new Set(preferences).size !== preferences.length) {
+                alert("Please select a unique department for each preference rank.");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Submitting...";
+
+            const payload = {
+                wave: wave,
+                id: studentId,
+                name: studentName,
+                preferences: preferences
+            };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                alert("Preferences submitted successfully!");
+                document.getElementById('preferenceForm').reset();
+                document.getElementById('studentSelect').disabled = true;
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Submit My Preferences";
+            }).catch(err => {
+                console.error("Submission error:", err);
+                alert("Error submitting choices. Please try again.");
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Submit My Preferences";
+            });
+        }
+    </script>
+</body>
+</html>
