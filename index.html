@@ -3,162 +3,350 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Department Preference Form</title>
+    <title>Faculty Department Allocation System</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f7f6; 
-            color: #333; 
-        }
-        .container { 
-            max-width: 600px; 
-            margin: 20px auto; 
-            background: white; 
-            padding: 30px; 
-            border-radius: 10px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
-        }
-        h1 { 
-            color: #1a365d; 
-            text-align: center; 
-            margin-top: 0;
-            margin-bottom: 20px; 
-            font-size: 24px;
-        }
-        h3 {
-            color: #2c5282;
-            margin-bottom: 15px;
-        }
-        .form-group { 
-            margin-bottom: 20px; 
-        }
-        label { 
-            display: block; 
-            font-weight: bold; 
-            margin-bottom: 8px; 
-            color: #2d3748; 
-        }
-        select { 
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid #cbd5e0; 
-            border-radius: 6px; 
-            box-sizing: border-box; 
-            font-size: 15px; 
-            background-color: #fff; 
-        }
-        select:disabled { 
-            background-color: #edf2f7; 
-            cursor: not-allowed; 
-        }
-        button { 
-            background-color: #2f855a; 
-            color: white; 
-            border: none; 
-            padding: 14px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            width: 100%; 
-            font-size: 16px; 
-            margin-top: 10px; 
-        }
-        button:hover { 
-            background-color: #276749; 
-        }
-        button:disabled { 
-            background-color: #a0aec0; 
-            cursor: not-allowed; 
-        }
-        #loadingMsg { 
-            text-align: center; 
-            color: #3182ce; 
-            font-weight: bold; 
-            margin-bottom: 15px; 
-            padding: 10px;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        h1, h2, h3 { color: #1a365d; margin-top: 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .full-width { grid-column: span 2; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        textarea { height: 120px; font-family: monospace; }
+        .dept-row { display: flex; gap: 10px; margin-bottom: 8px; }
+        button { background-color: #2b6cb0; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #2c5282; }
+        button.success { background-color: #2f855a; font-size: 16px; }
+        button.success:hover { background-color: #276749; }
+        button.danger { background-color: #c53030; padding: 5px 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; background: white; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background-color: #edf2f7; color: #2d3748; }
+        .badge { background-color: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .unassigned-badge { color: #c53030; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Department Preference Form</h1>
-        <div id="loadingMsg">Loading options from Google Sheets...</div>
+    <h1>Faculty Department Preference Portal</h1>
 
-        <form id="preferenceForm" style="display:none;" onsubmit="submitForm(event)">
-            <div class="form-group">
-                <label for="waveSelect">1. Select Your Wave Number:</label>
-                <select id="waveSelect" required onchange="filterStudentsByWave()">
-                    <option value="">-- Choose Wave --</option>
-                </select>
+    <div class="grid">
+        <div class="card">
+            <h2>1. Admin Setup (Departments & Student Roster)</h2>
+            
+            <label><strong>Departments & Capacities:</strong></label>
+            <div id="deptContainer">
+                <div class="dept-row">
+                    <input type="text" value="CS" class="dept-name" placeholder="Department Name">
+                    <input type="number" value="2" class="dept-cap" placeholder="Capacity">
+                </div>
+                <div class="dept-row">
+                    <input type="text" value="IS" class="dept-name" placeholder="Department Name">
+                    <input type="number" value="2" class="dept-cap" placeholder="Capacity">
+                </div>
+                <div class="dept-row">
+                    <input type="text" value="AI" class="dept-name" placeholder="Department Name">
+                    <input type="number" value="2" class="dept-cap" placeholder="Capacity">
+                </div>
             </div>
+            <button onclick="addDeptRow()">+ Add Department</button>
+            <br><br>
 
-            <div class="form-group">
-                <label for="studentSelect">2. Select Your Name:</label>
-                <select id="studentSelect" required disabled>
-                    <option value="">-- Select Wave First --</option>
-                </select>
+            <label><strong>Paste Student Roster (CSV):</strong></label>
+            <p><small>Format: ID, Name, GPA</small></p>
+            <textarea id="rosterInput">101, Alice Smith, 3.90
+102, Bob Jones, 3.70
+103, Charlie Brown, 3.85
+104, Diana Prince, 3.50
+105, Evan Wright, 3.20
+106, Fiona Gallagher, 3.95</textarea>
+            <br><br>
+            <button onclick="loadRoster()" style="width: 100%; background-color: #4a5568;">Load Student Dropdown Menu</button>
+        </div>
+
+        <div class="card">
+            <h2>2. Student Wish Submission</h2>
+            <form id="studentForm" onsubmit="submitStudentWishes(event)">
+                <div class="form-group">
+                    <label>Select Your Name:</label>
+                    <select id="studentSelect" required onchange="displaySelectedGpa()">
+                        <option value="">-- First Load Roster Above --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Your Recorded GPA:</label>
+                    <input type="text" id="displayGpa" readonly placeholder="Select name to view GPA" style="background-color: #edf2f7;">
+                </div>
+                
+                <div id="wishesContainer">
+                    <p><strong>Select Department Preferences in Order:</strong></p>
+                    </div>
+
+                <button type="submit" id="submitBtn" class="success" style="width: 100%;" disabled>Submit My Preferences</button>
+            </form>
+        </div>
+
+        <div class="card full-width">
+            <h2>3. Live Submission Status (<span id="submittedCount">0</span> Submitted)</h2>
+            <table id="submittedTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>GPA</th>
+                        <th>Submitted Preference Order</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="runAllocation()" class="success" style="font-size: 18px; padding: 12px 30px;">Generate Final Department Lists</button>
+                <button id="exportBtn" onclick="exportToCSV()" style="font-size: 18px; padding: 12px 30px; display: none; margin-left: 15px; background-color: #319795;">Export Final Output to Excel (CSV)</button>
             </div>
+        </div>
 
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;">
-
-            <div id="departmentsContainer"></div>
-
-            <button type="submit" id="submitBtn">Submit My Preferences</button>
-        </form>
+        <div class="card full-width">
+            <h2>4. Final Department Allocations Output</h2>
+            <div id="results">Click "Generate Final Department Lists" once all students have submitted their preferences.</div>
+        </div>
     </div>
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyC0f5f1oVLCZeTUzp49ticE3yA0QiqDskrOY-knMLGIgVIf7tWEwxgtvnT__HDH-xfZA/exec";
+        let studentRoster = {}; // Stores { id: { name, gpa, preferences: [] } }
+        let departments = ["CS", "IS", "AI"];
+        let submittedStudents = [];
+        let globalAllocations = {};
 
-        let allStudents = [];
-        let allDepartments = [];
+        function addDeptRow() {
+            const container = document.getElementById('deptContainer');
+            const div = document.createElement('div');
+            div.className = 'dept-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Department Name" class="dept-name">
+                <input type="number" placeholder="Capacity" class="dept-cap" value="10">
+                <button type="button" class="danger" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(div);
+        }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const loadingMsg = document.getElementById('loadingMsg');
-
-            fetch(GOOGLE_SCRIPT_URL)
-                .then(res => res.json())
-                .then(data => {
-                    console.log("Raw Sheet Data Received:", data);
-
-                    allStudents = data.students || [];
-                    allDepartments = data.departments || [];
-
-                    if (!Array.isArray(allStudents) || allStudents.length === 0) {
-                        loadingMsg.innerText = "No pending students found or all preferences are submitted.";
-                        loadingMsg.style.color = "#d69e2e";
-                        return;
-                    }
-
-                    populateWaveDropdown();
-                    buildDepartmentDropdowns();
-
-                    loadingMsg.style.display = 'none';
-                    document.getElementById('preferenceForm').style.display = 'block';
-                })
-                .catch(err => {
-                    console.error("Fetch error:", err);
-                    loadingMsg.innerText = "Error loading data. Check Console (F12) for details.";
-                    loadingMsg.style.color = "#c53030";
-                });
-        });
-
-        function populateWaveDropdown() {
-            const waveSelect = document.getElementById('waveSelect');
-            waveSelect.innerHTML = '<option value="">-- Choose Wave --</option>';
-
-            const waveSet = new Set();
-            allStudents.forEach(s => {
-                let w = (s.wave !== undefined && s.wave !== null && String(s.wave).trim() !== "") 
-                        ? String(s.wave).trim() 
-                        : "1";
-                waveSet.add(w);
+        function loadRoster() {
+            // Update department list
+            const deptInputs = document.querySelectorAll('.dept-name');
+            departments = [];
+            deptInputs.forEach(i => {
+                if (i.value.trim()) departments.push(i.value.trim());
             });
 
-            const waves = Array.from(waveSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            // Parse raw text CSV
+            const rawText = document.getElementById('rosterInput').value.trim();
+            const lines = rawText.split('\n');
+            studentRoster = {};
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = '<option value="">-- Choose Your Name --</option>';
 
-            waves.forEach(wave => {
-                const opt = document.createElement('option');
+            lines.forEach(line => {
+                if (!line.trim()) return;
+                const parts = line.split(',').map(p => p.trim());
+                if (parts.length >= 3) {
+                    const id = parts[0];
+                    const name = parts[1];
+                    const gpa = parseFloat(parts[2]);
+
+                    studentRoster[id] = { id, name, gpa, preferences: [] };
+
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${name} (ID: ${id})`;
+                    select.appendChild(option);
+                }
+            });
+
+            buildWishDropdowns();
+            document.getElementById('submitBtn').disabled = false;
+            alert('Roster and departments loaded successfully!');
+        }
+
+        function displaySelectedGpa() {
+            const selectedId = document.getElementById('studentSelect').value;
+            const gpaInput = document.getElementById('displayGpa');
+            if (selectedId && studentRoster[selectedId]) {
+                gpaInput.value = studentRoster[selectedId].gpa.toFixed(2);
+            } else {
+                gpaInput.value = '';
+            }
+        }
+
+        function buildWishDropdowns() {
+            const container = document.getElementById('wishesContainer');
+            container.innerHTML = '<p><strong>Select Department Preferences in Order:</strong></p>';
+
+            departments.forEach((dept, idx) => {
+                const div = document.createElement('div');
+                div.className = 'form-group';
+
+                let options = `<option value="">-- Select Wish ${idx + 1} --</option>`;
+                departments.forEach(d => {
+                    options += `<option value="${d}">${d}</option>`;
+                });
+
+                div.innerHTML = `
+                    <label>Preference ${idx + 1}:</label>
+                    <select class="wish-select" required>${options}</select>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function submitStudentWishes(event) {
+            event.preventDefault();
+            const studentId = document.getElementById('studentSelect').value;
+
+            if (!studentId) {
+                alert("Please select a student name.");
+                return;
+            }
+
+            const selects = document.querySelectorAll('.wish-select');
+            const wishes = [];
+            selects.forEach(s => {
+                if (s.value) wishes.push(s.value);
+            });
+
+            if (new Set(wishes).size !== wishes.length) {
+                alert("Please select unique departments for each preference rank.");
+                return;
+            }
+
+            // Save student selection
+            const studentData = { ...studentRoster[studentId], preferences: wishes };
+            
+            // Check if student already submitted, replace if so
+            const existingIdx = submittedStudents.findIndex(s => s.id === studentId);
+            if (existingIdx !== -1) {
+                submittedStudents[existingIdx] = studentData;
+            } else {
+                submittedStudents.push(studentData);
+            }
+
+            renderSubmittedTable();
+            document.getElementById('studentForm').reset();
+            document.getElementById('displayGpa').value = '';
+        }
+
+        function renderSubmittedTable() {
+            const tbody = document.querySelector('#submittedTable tbody');
+            tbody.innerHTML = '';
+
+            submittedStudents.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${s.id}</td>
+                    <td>${s.name}</td>
+                    <td>${s.gpa.toFixed(2)}</td>
+                    <td>${s.preferences.map((p, i) => `<span class="badge">${i+1}. ${p}</span>`).join(' ')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('submittedCount').innerText = submittedStudents.length;
+        }
+
+        function runAllocation() {
+            if (submittedStudents.length === 0) {
+                alert("No students have submitted preferences yet.");
+                return;
+            }
+
+            // Get capacity limits
+            const deptInputs = document.querySelectorAll('.dept-name');
+            const capInputs = document.querySelectorAll('.dept-cap');
+            const capacities = {};
+            const allocations = {};
+
+            deptInputs.forEach((input, i) => {
+                const name = input.value.trim();
+                const cap = parseInt(capInputs[i].value) || 0;
+                if (name) {
+                    capacities[name] = cap;
+                    allocations[name] = [];
+                }
+            });
+            allocations['Unassigned'] = [];
+
+            // Sort submitted students strictly by GPA (Descending order)
+            const sortedStudents = [...submittedStudents].sort((a, b) => b.gpa - a.gpa);
+
+            // Execute matching logic
+            sortedStudents.forEach(student => {
+                let assigned = false;
+                for (let wish of student.preferences) {
+                    if (capacities[wish] !== undefined && allocations[wish].length < capacities[wish]) {
+                        allocations[wish].push(student);
+                        assigned = true;
+                        break;
+                    }
+                }
+                if (!assigned) {
+                    allocations['Unassigned'].push(student);
+                }
+            });
+
+            globalAllocations = allocations;
+
+            // Display Results
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            for (let dept in allocations) {
+                if (dept === 'Unassigned' && allocations[dept].length === 0) continue;
+
+                let html = `<h3>${dept} ${dept !== 'Unassigned' ? `(Capacity: ${allocations[dept].length}/${capacities[dept]})` : ''}</h3>`;
+                html += `<table>
+                            <tr>
+                                <th>Rank</th>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>GPA</th>
+                                ${dept === 'Unassigned' ? '<th>Submitted Wishes</th>' : ''}
+                            </tr>`;
+
+                allocations[dept].forEach((s, idx) => {
+                    html += `<tr>
+                                <td>${idx + 1}</td>
+                                <td>${s.id}</td>
+                                <td>${s.name}</td>
+                                <td>${s.gpa.toFixed(2)}</td>
+                                ${dept === 'Unassigned' ? `<td class="unassigned-badge">${s.preferences.join(' &rarr; ')}</td>` : ''}
+                             </tr>`;
+                });
+
+                html += `</table>`;
+                resultsDiv.innerHTML += html;
+            }
+
+            document.getElementById('exportBtn').style.display = 'inline-block';
+        }
+
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,Department,Rank,Student ID,Student Name,GPA\n";
+
+            for (let dept in globalAllocations) {
+                globalAllocations[dept].forEach((s, idx) => {
+                    csvContent += `"${dept}","${idx + 1}","${s.id}","${s.name}","${s.gpa}"\n`;
+                });
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "final_department_allocations.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
