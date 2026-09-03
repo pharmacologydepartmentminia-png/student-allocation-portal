@@ -54,7 +54,7 @@
             <br><br>
 
             <label><strong>Paste Student Roster (CSV):</strong></label>
-            <p><small>Format: ID, Name, GPA</small></p>
+            <p><small>Format: ID, Name, GPA (GPA is stored internally for merit sorting)</small></p>
             <textarea id="rosterInput">101, Alice Smith, 3.90
 102, Bob Jones, 3.70
 103, Charlie Brown, 3.85
@@ -70,19 +70,14 @@
             <form id="studentForm" onsubmit="submitStudentWishes(event)">
                 <div class="form-group">
                     <label>Select Your Name:</label>
-                    <select id="studentSelect" required onchange="displaySelectedGpa()">
+                    <select id="studentSelect" required>
                         <option value="">-- First Load Roster Above --</option>
                     </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Your Recorded GPA:</label>
-                    <input type="text" id="displayGpa" readonly placeholder="Select name to view GPA" style="background-color: #edf2f7;">
                 </div>
                 
                 <div id="wishesContainer">
                     <p><strong>Select Department Preferences in Order:</strong></p>
-                    </div>
+                </div>
 
                 <button type="submit" id="submitBtn" class="success" style="width: 100%;" disabled>Submit My Preferences</button>
             </form>
@@ -95,7 +90,6 @@
                     <tr>
                         <th>ID</th>
                         <th>Name</th>
-                        <th>GPA</th>
                         <th>Submitted Preference Order</th>
                     </tr>
                 </thead>
@@ -103,8 +97,9 @@
             </table>
 
             <div style="text-align: center; margin-top: 20px;">
-                <button onclick="runAllocation()" class="success" style="font-size: 18px; padding: 12px 30px;">Generate Final Department Lists</button>
-                <button id="exportBtn" onclick="exportToCSV()" style="font-size: 18px; padding: 12px 30px; display: none; margin-left: 15px; background-color: #319795;">Export Final Output to Excel (CSV)</button>
+                <button onclick="fetchFromGoogleSheets()" style="font-size: 18px; padding: 12px 25px; background-color: #3182ce;">Sync Data from Google Sheets</button>
+                <button onclick="runAllocation()" class="success" style="font-size: 18px; padding: 12px 30px; margin-left: 10px;">Generate Final Department Lists</button>
+                <button id="exportBtn" onclick="exportToCSV()" style="font-size: 18px; padding: 12px 30px; display: none; margin-left: 10px; background-color: #319795;">Export Final Output to Excel (CSV)</button>
             </div>
         </div>
 
@@ -115,7 +110,9 @@
     </div>
 
     <script>
-        let studentRoster = {}; // Stores { id: { name, gpa, preferences: [] } }
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyC0f5f1oVLCZeTUzp49ticE3yA0QiqDskrOY-knMLGIgVIf7tWEwxgtvnT__HDH-xfZA/exec";
+
+        let studentRoster = {}; 
         let departments = ["CS", "IS", "AI"];
         let submittedStudents = [];
         let globalAllocations = {};
@@ -133,14 +130,12 @@
         }
 
         function loadRoster() {
-            // Update department list
             const deptInputs = document.querySelectorAll('.dept-name');
             departments = [];
             deptInputs.forEach(i => {
                 if (i.value.trim()) departments.push(i.value.trim());
             });
 
-            // Parse raw text CSV
             const rawText = document.getElementById('rosterInput').value.trim();
             const lines = rawText.split('\n');
             studentRoster = {};
@@ -167,16 +162,6 @@
             buildWishDropdowns();
             document.getElementById('submitBtn').disabled = false;
             alert('Roster and departments loaded successfully!');
-        }
-
-        function displaySelectedGpa() {
-            const selectedId = document.getElementById('studentSelect').value;
-            const gpaInput = document.getElementById('displayGpa');
-            if (selectedId && studentRoster[selectedId]) {
-                gpaInput.value = studentRoster[selectedId].gpa.toFixed(2);
-            } else {
-                gpaInput.value = '';
-            }
         }
 
         function buildWishDropdowns() {
@@ -220,10 +205,21 @@
                 return;
             }
 
-            // Save student selection
             const studentData = { ...studentRoster[studentId], preferences: wishes };
-            
-            // Check if student already submitted, replace if so
+
+            // Send to Google Sheets via Apps Script Endpoint
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(studentData)
+            }).then(() => {
+                alert("Preferences successfully submitted and saved to Google Sheets!");
+            }).catch(err => {
+                console.error("Submission error:", err);
+                alert("Error sending data to Google Sheets.");
+            });
+
             const existingIdx = submittedStudents.findIndex(s => s.id === studentId);
             if (existingIdx !== -1) {
                 submittedStudents[existingIdx] = studentData;
@@ -233,7 +229,6 @@
 
             renderSubmittedTable();
             document.getElementById('studentForm').reset();
-            document.getElementById('displayGpa').value = '';
         }
 
         function renderSubmittedTable() {
@@ -245,7 +240,6 @@
                 tr.innerHTML = `
                     <td>${s.id}</td>
                     <td>${s.name}</td>
-                    <td>${s.gpa.toFixed(2)}</td>
                     <td>${s.preferences.map((p, i) => `<span class="badge">${i+1}. ${p}</span>`).join(' ')}</td>
                 `;
                 tbody.appendChild(tr);
@@ -254,13 +248,36 @@
             document.getElementById('submittedCount').innerText = submittedStudents.length;
         }
 
+        function fetchFromGoogleSheets() {
+            fetch(GOOGLE_SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        submittedStudents = data.map(item => {
+                            const foundRoster = studentRoster[item.id] || {};
+                            return {
+                                id: item.id,
+                                name: item.name,
+                                gpa: foundRoster.gpa || item.gpa || 0,
+                                preferences: Array.isArray(item.preferences) ? item.preferences : item.preferences.split(',').map(s => s.trim())
+                            };
+                        });
+                        renderSubmittedTable();
+                        alert('Synced ' + submittedStudents.length + ' records from Google Sheets!');
+                    }
+                })
+                .catch(err => {
+                    console.error("Sync error:", err);
+                    alert("Could not fetch Google Sheets data. Make sure your Apps Script doGet(e) endpoint returns JSON format.");
+                });
+        }
+
         function runAllocation() {
             if (submittedStudents.length === 0) {
                 alert("No students have submitted preferences yet.");
                 return;
             }
 
-            // Get capacity limits
             const deptInputs = document.querySelectorAll('.dept-name');
             const capInputs = document.querySelectorAll('.dept-cap');
             const capacities = {};
@@ -276,10 +293,9 @@
             });
             allocations['Unassigned'] = [];
 
-            // Sort submitted students strictly by GPA (Descending order)
+            // Sort by GPA internally (GPA is omitted from UI display)
             const sortedStudents = [...submittedStudents].sort((a, b) => b.gpa - a.gpa);
 
-            // Execute matching logic
             sortedStudents.forEach(student => {
                 let assigned = false;
                 for (let wish of student.preferences) {
@@ -296,7 +312,6 @@
 
             globalAllocations = allocations;
 
-            // Display Results
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
 
@@ -309,7 +324,6 @@
                                 <th>Rank</th>
                                 <th>ID</th>
                                 <th>Name</th>
-                                <th>GPA</th>
                                 ${dept === 'Unassigned' ? '<th>Submitted Wishes</th>' : ''}
                             </tr>`;
 
@@ -318,7 +332,6 @@
                                 <td>${idx + 1}</td>
                                 <td>${s.id}</td>
                                 <td>${s.name}</td>
-                                <td>${s.gpa.toFixed(2)}</td>
                                 ${dept === 'Unassigned' ? `<td class="unassigned-badge">${s.preferences.join(' &rarr; ')}</td>` : ''}
                              </tr>`;
                 });
@@ -331,11 +344,11 @@
         }
 
         function exportToCSV() {
-            let csvContent = "data:text/csv;charset=utf-8,Department,Rank,Student ID,Student Name,GPA\n";
+            let csvContent = "data:text/csv;charset=utf-8,Department,Rank,Student ID,Student Name\n";
 
             for (let dept in globalAllocations) {
                 globalAllocations[dept].forEach((s, idx) => {
-                    csvContent += `"${dept}","${idx + 1}","${s.id}","${s.name}","${s.gpa}"\n`;
+                    csvContent += `"${dept}","${idx + 1}","${s.id}","${s.name}"\n`;
                 });
             }
 
