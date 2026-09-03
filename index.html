@@ -3,82 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Preference Form</title>
+  <title>Student Department Preference Form</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f4f6f9;
-      margin: 0;
-      padding: 20px;
-    }
-    .form-container {
-      max-width: 650px;
-      margin: 20px auto;
-      background: #ffffff;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    h2, h3 { color: #2c3e50; margin-top: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; padding: 20px; }
+    .form-container { max-width: 650px; margin: 20px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2, h3 { color: #2c3e50; }
     .form-group { margin-bottom: 16px; }
     label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ced4da;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
-    .pref-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    button {
-      width: 100%;
-      background-color: #007bff;
-      color: white;
-      padding: 12px;
-      border: none;
-      border-radius: 4px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 15px;
-    }
-    button:hover { background-color: #0056b3; }
-    #status {
-      margin-top: 15px;
-      font-weight: bold;
-      text-align: center;
-      padding: 10px;
-      border-radius: 4px;
-    }
+    input, select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; }
+    input[readonly] { background-color: #e9ecef; }
+    .pref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { width: 100%; background: #007bff; color: white; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+    button:disabled { background: #6c757d; }
+    #status { margin-top: 15px; font-weight: bold; text-align: center; }
   </style>
 </head>
 <body>
 
 <div class="form-container">
   <h2>Department Preference Form</h2>
-  
-  <div id="loadingMsg">Loading student records...</div>
+  <div id="loadingMsg">Fetching fresh data from Google Sheet...</div>
 
   <form id="preferenceForm" style="display:none;" onsubmit="handleFormSubmit(event)">
-    
-    <!-- STEP 1: WAVE SELECTION -->
     <div class="form-group">
       <label for="studentWave">1. Select Wave:</label>
       <select id="studentWave" onchange="onWaveChange()" required>
-        <option value="">-- Select Wave --</option>
+        <option value="">-- Choose Wave --</option>
         <option value="1">Wave 1</option>
         <option value="2">Wave 2</option>
         <option value="3">Wave 3</option>
       </select>
     </div>
 
-    <!-- STEP 2: STUDENT SELECTION -->
     <div class="form-group">
       <label for="studentSelect">2. Select Your Name:</label>
       <select id="studentSelect" onchange="onStudentSelect()" disabled required>
@@ -86,45 +43,32 @@
       </select>
     </div>
 
-    <!-- STEP 3: 8 PREFERENCES -->
-    <h3>3. Select 8 Department Preferences (Ranked)</h3>
-    
     <div class="pref-grid">
       <div class="form-group">
-        <label for="pref1">1st Preference:</label>
-        <select class="dept-pref" id="pref1" required></select>
+        <label>Student ID:</label>
+        <input type="text" id="studentId" readonly required placeholder="Auto-filled">
       </div>
       <div class="form-group">
-        <label for="pref2">2nd Preference:</label>
-        <select class="dept-pref" id="pref2" required></select>
-      </div>
-      <div class="form-group">
-        <label for="pref3">3rd Preference:</label>
-        <select class="dept-pref" id="pref3" required></select>
-      </div>
-      <div class="form-group">
-        <label for="pref4">4th Preference:</label>
-        <select class="dept-pref" id="pref4" required></select>
-      </div>
-      <div class="form-group">
-        <label for="pref5">5th Preference:</label>
-        <select class="dept-pref" id="pref5" required></select>
-      </div>
-      <div class="form-group">
-        <label for="pref6">6th Preference:</label>
-        <select class="dept-pref" id="pref6" required></select>
-      </div>
-      <div class="form-group">
-        <label for="pref7">7th Preference:</label>
-        <select class="dept-pref" id="pref7" required></select>
-      </div>
-      <div class="form-group">
-        <label for="pref8">8th Preference:</label>
-        <select class="dept-pref" id="pref8" required></select>
+        <label>GPA:</label>
+        <input type="text" id="studentGpa" readonly required placeholder="Auto-filled">
       </div>
     </div>
 
-    <button type="submit" id="submitBtn">Submit All 8 Preferences</button>
+    <hr style="margin: 20px 0;">
+
+    <h3>3. Select All 8 Preferences (Ranked)</h3>
+    <div class="pref-grid">
+      <div class="form-group"><label>1st Preference:</label><select class="dept-pref" id="pref1" required></select></div>
+      <div class="form-group"><label>2nd Preference:</label><select class="dept-pref" id="pref2" required></select></div>
+      <div class="form-group"><label>3rd Preference:</label><select class="dept-pref" id="pref3" required></select></div>
+      <div class="form-group"><label>4th Preference:</label><select class="dept-pref" id="pref4" required></select></div>
+      <div class="form-group"><label>5th Preference:</label><select class="dept-pref" id="pref5" required></select></div>
+      <div class="form-group"><label>6th Preference:</label><select class="dept-pref" id="pref6" required></select></div>
+      <div class="form-group"><label>7th Preference:</label><select class="dept-pref" id="pref7" required></select></div>
+      <div class="form-group"><label>8th Preference:</label><select class="dept-pref" id="pref8" required></select></div>
+    </div>
+
+    <button type="submit" id="submitBtn">Submit Preferences</button>
   </form>
 
   <div id="status"></div>
@@ -134,27 +78,25 @@
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyC0f5f1oVLCZeTUzp49ticE3yA0QiqDskrOY-knMLGIgVIf7tWEwxgtvnT__HDH-xfZA/exec';
 
 const DEPARTMENTS = [
-  "Pharmaceutics",
-  "Pharmacology",
-  "Medicinal chemistry",
-  "Pharmacy practice",
-  "Microbiology",
-  "Pharmacognosy",
-  "Biochemistry",
-  "Analytical chemistry"
+  "Pharmaceutics", "Pharmacology", "Medicinal chemistry", "Pharmacy practice",
+  "Microbiology", "Pharmacognosy", "Biochemistry", "Analytical chemistry"
 ];
 
 let allStudents = [];
 
-// Initialize Form and Dropdowns
 async function initForm() {
   const loading = document.getElementById('loadingMsg');
   try {
-    const res = await fetch(`${SCRIPT_URL}?t=${new Date().getTime()}`);
-    const data = await res.json();
+    // Cache buster timestamp prevents browsers from reading cached sheet results
+    const response = await fetch(`${SCRIPT_URL}?nocache=${new Date().getTime()}`);
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
     allStudents = data.students || [];
 
-    // Populate Department Dropdowns
     const prefDropdowns = document.querySelectorAll('.dept-pref');
     prefDropdowns.forEach((select, idx) => {
       select.innerHTML = `<option value="">-- Choose #${idx + 1} --</option>` + 
@@ -163,114 +105,100 @@ async function initForm() {
 
     loading.style.display = 'none';
     document.getElementById('preferenceForm').style.display = 'block';
+
+    if (document.getElementById('studentWave').value) {
+      onWaveChange();
+    }
   } catch (err) {
-    loading.textContent = 'Failed to load student database. Please refresh.';
-    console.error(err);
+    loading.style.color = 'red';
+    loading.textContent = 'Error connecting to Google Sheets: ' + err.message;
   }
 }
 
-// When Wave Dropdown Changes
 function onWaveChange() {
-  const selectedWave = document.getElementById('studentWave').value;
+  const waveVal = document.getElementById('studentWave').value.trim();
   const studentSelect = document.getElementById('studentSelect');
   
-  // Clear ID & GPA
   document.getElementById('studentId').value = '';
   document.getElementById('studentGpa').value = '';
 
-  if (!selectedWave) {
+  if (!waveVal) {
     studentSelect.innerHTML = '<option value="">-- Select Wave First --</option>';
     studentSelect.disabled = true;
     return;
   }
 
-  // Filter students for selected Wave
-  const waveStudents = allStudents.filter(s => String(s.wave) === String(selectedWave));
-  
-  if (waveStudents.length === 0) {
-    studentSelect.innerHTML = '<option value="">No students found in this Wave</option>';
+  const matches = allStudents.filter(s => String(s.wave).trim() === waveVal);
+
+  if (matches.length === 0) {
+    studentSelect.innerHTML = `<option value="">No students found in Wave ${waveVal}</option>`;
     studentSelect.disabled = true;
     return;
   }
 
-  studentSelect.innerHTML = '<option value="">-- Select Name --</option>' + 
-    waveStudents.map(s => `<option value="${s.id}">${s.name} (ID: ${s.id})</option>`).join('');
+  studentSelect.innerHTML = '<option value="">-- Select Your Name --</option>' +
+    matches.map(s => `<option value="${s.id}">${s.name} (ID: ${s.id})</option>`).join('');
+  
   studentSelect.disabled = false;
 }
 
-// When Student Name Dropdown Changes
 function onStudentSelect() {
-  const studentId = document.getElementById('studentSelect').value;
-  const student = allStudents.find(s => String(s.id) === String(studentId));
+  const idVal = document.getElementById('studentSelect').value;
+  const match = allStudents.find(s => String(s.id).trim() === String(idVal).trim());
 
-  if (student) {
-    document.getElementById('studentId').value = student.id;
-    document.getElementById('studentGpa').value = typeof student.gpa === 'number' ? student.gpa.toFixed(2) : student.gpa;
-  } else {
-    document.getElementById('studentId').value = '';
-    document.getElementById('studentGpa').value = '';
+  if (match) {
+    document.getElementById('studentId').value = match.id;
+    document.getElementById('studentGpa').value = match.gpa;
   }
 }
 
-// Submit Handler
-async function handleFormSubmit(event) {
-  event.preventDefault();
+async function handleFormSubmit(e) {
+  e.preventDefault();
   const statusEl = document.getElementById('status');
   const submitBtn = document.getElementById('submitBtn');
 
-  // Collect preferences
-  const prefs = [];
-  for (let i = 1; i <= 8; i++) {
-    const val = document.getElementById(`pref${i}`).value;
-    if (val) prefs.push(val);
-  }
-
-  // Ensure all 8 are selected
-  if (prefs.length < 8) {
+  const prefs = Array.from(document.querySelectorAll('.dept-pref')).map(s => s.value);
+  if (prefs.includes("")) {
     statusEl.style.color = 'red';
-    statusEl.textContent = 'Please select all 8 preferences.';
+    statusEl.textContent = 'Please fill out all 8 preference slots.';
     return;
   }
 
-  // Check for duplicates
-  const uniquePrefs = new Set(prefs);
-  if (uniquePrefs.size < 8) {
+  if (new Set(prefs).size !== 8) {
     statusEl.style.color = 'red';
-    statusEl.textContent = 'Duplicates detected! Each of the 8 preferences must be unique.';
+    statusEl.textContent = 'Duplicate selections found! Each preference must be unique.';
     return;
   }
 
-  const selectedStudentObj = allStudents.find(s => String(s.id) === document.getElementById('studentId').value);
+  const selectedStudentObj = allStudents.find(s => String(s.id).trim() === document.getElementById('studentId').value.trim());
 
   const payload = {
     id: document.getElementById('studentId').value,
     name: selectedStudentObj ? selectedStudentObj.name : '',
-    gpa: parseFloat(document.getElementById('studentGpa').value),
+    gpa: document.getElementById('studentGpa').value,
     wave: document.getElementById('studentWave').value,
     preferences: prefs
   };
 
   statusEl.style.color = '#007bff';
-  statusEl.textContent = 'Submitting choices...';
+  statusEl.textContent = 'Submitting to sheet...';
   submitBtn.disabled = true;
 
   try {
+    // Send as text/plain to avoid CORS preflight failures on Google Apps Script
     await fetch(SCRIPT_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     });
 
     statusEl.style.color = 'green';
-    statusEl.textContent = 'Preferences submitted successfully!';
+    statusEl.textContent = 'Submission successful!';
     document.getElementById('preferenceForm').reset();
     document.getElementById('studentSelect').disabled = true;
-
   } catch (err) {
-    console.error('Submission error:', err);
     statusEl.style.color = 'red';
-    statusEl.textContent = 'Submission failed. Please check your connection.';
+    statusEl.textContent = 'Submission failed: ' + err.message;
   } finally {
     submitBtn.disabled = false;
   }
@@ -278,6 +206,5 @@ async function handleFormSubmit(event) {
 
 document.addEventListener('DOMContentLoaded', initForm);
 </script>
-
 </body>
 </html>
