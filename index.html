@@ -1,365 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Faculty Department Allocation System</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
-        h1, h2, h3 { color: #1a365d; margin-top: 0; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .full-width { grid-column: span 2; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        textarea { height: 120px; font-family: monospace; }
-        .dept-row { display: flex; gap: 10px; margin-bottom: 8px; }
-        button { background-color: #2b6cb0; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #2c5282; }
-        button.success { background-color: #2f855a; font-size: 16px; }
-        button.success:hover { background-color: #276749; }
-        button.danger { background-color: #c53030; padding: 5px 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; background: white; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
-        th { background-color: #edf2f7; color: #2d3748; }
-        .badge { background-color: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
-        .unassigned-badge { color: #c53030; font-weight: bold; }
-    </style>
-</head>
-<body>
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // 1. Fetch Students data (assuming main sheet is first tab)
+  var studentSheet = ss.getSheets()[0];
+  var studentRows = studentSheet.getDataRange().getValues();
+  
+  var students = [];
+  // Skip header row
+  for (var i = 1; i < studentRows.length; i++) {
+    if (studentRows[i][1]) { // Ensure student name exists
+      students.push({
+        id: studentRows[i][0],      // Column A: ID
+        name: studentRows[i][1],    // Column B: Name
+        wave: studentRows[i][3]     // Column D: Wave
+      });
+    }
+  }
 
-    <h1>Faculty Department Preference Portal</h1>
+  // 2. Fetch Departments data from 'departments' sheet
+  var deptSheet = ss.getSheetByName("departments");
+  var depts = [];
+  if (deptSheet) {
+    var deptRows = deptSheet.getDataRange().getValues();
+    for (var j = 1; j < deptRows.length; j++) {
+      if (deptRows[j][0]) {
+        depts.push(deptRows[j][0]);  // Column A: Department Name
+      }
+    }
+  }
 
-    <div class="grid">
-        <div class="card">
-            <h2>1. Admin Setup (Departments & Student Roster)</h2>
-            
-            <label><strong>Departments & Capacities:</strong></label>
-            <div id="deptContainer">
-                <div class="dept-row">
-                    <input type="text" value="CS" class="dept-name" placeholder="Department Name">
-                    <input type="number" value="2" class="dept-cap" placeholder="Capacity">
-                </div>
-                <div class="dept-row">
-                    <input type="text" value="IS" class="dept-name" placeholder="Department Name">
-                    <input type="number" value="2" class="dept-cap" placeholder="Capacity">
-                </div>
-                <div class="dept-row">
-                    <input type="text" value="AI" class="dept-name" placeholder="Department Name">
-                    <input type="number" value="2" class="dept-cap" placeholder="Capacity">
-                </div>
-            </div>
-            <button onclick="addDeptRow()">+ Add Department</button>
-            <br><br>
+  var result = {
+    students: students,
+    departments: depts
+  };
 
-            <label><strong>Paste Student Roster (CSV):</strong></label>
-            <p><small>Format: ID, Name, GPA (GPA is stored internally for merit sorting)</small></p>
-            <textarea id="rosterInput">101, Alice Smith, 3.90
-102, Bob Jones, 3.70
-103, Charlie Brown, 3.85
-104, Diana Prince, 3.50
-105, Evan Wright, 3.20
-106, Fiona Gallagher, 3.95</textarea>
-            <br><br>
-            <button onclick="loadRoster()" style="width: 100%; background-color: #4a5568;">Load Student Dropdown Menu</button>
-        </div>
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .mimeType(ContentService.MimeType.JSON);
+}
 
-        <div class="card">
-            <h2>2. Student Wish Submission</h2>
-            <form id="studentForm" onsubmit="submitStudentWishes(event)">
-                <div class="form-group">
-                    <label>Select Your Name:</label>
-                    <select id="studentSelect" required>
-                        <option value="">-- First Load Roster Above --</option>
-                    </select>
-                </div>
-                
-                <div id="wishesContainer">
-                    <p><strong>Select Department Preferences in Order:</strong></p>
-                </div>
-
-                <button type="submit" id="submitBtn" class="success" style="width: 100%;" disabled>Submit My Preferences</button>
-            </form>
-        </div>
-
-        <div class="card full-width">
-            <h2>3. Live Submission Status (<span id="submittedCount">0</span> Submitted)</h2>
-            <table id="submittedTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Submitted Preference Order</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <button onclick="fetchFromGoogleSheets()" style="font-size: 18px; padding: 12px 25px; background-color: #3182ce;">Sync Data from Google Sheets</button>
-                <button onclick="runAllocation()" class="success" style="font-size: 18px; padding: 12px 30px; margin-left: 10px;">Generate Final Department Lists</button>
-                <button id="exportBtn" onclick="exportToCSV()" style="font-size: 18px; padding: 12px 30px; display: none; margin-left: 10px; background-color: #319795;">Export Final Output to Excel (CSV)</button>
-            </div>
-        </div>
-
-        <div class="card full-width">
-            <h2>4. Final Department Allocations Output</h2>
-            <div id="results">Click "Generate Final Department Lists" once all students have submitted their preferences.</div>
-        </div>
-    </div>
-
-    <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyC0f5f1oVLCZeTUzp49ticE3yA0QiqDskrOY-knMLGIgVIf7tWEwxgtvnT__HDH-xfZA/exec";
-
-        let studentRoster = {}; 
-        let departments = ["CS", "IS", "AI"];
-        let submittedStudents = [];
-        let globalAllocations = {};
-
-        function addDeptRow() {
-            const container = document.getElementById('deptContainer');
-            const div = document.createElement('div');
-            div.className = 'dept-row';
-            div.innerHTML = `
-                <input type="text" placeholder="Department Name" class="dept-name">
-                <input type="number" placeholder="Capacity" class="dept-cap" value="10">
-                <button type="button" class="danger" onclick="this.parentElement.remove()">X</button>
-            `;
-            container.appendChild(div);
-        }
-
-        function loadRoster() {
-            const deptInputs = document.querySelectorAll('.dept-name');
-            departments = [];
-            deptInputs.forEach(i => {
-                if (i.value.trim()) departments.push(i.value.trim());
-            });
-
-            const rawText = document.getElementById('rosterInput').value.trim();
-            const lines = rawText.split('\n');
-            studentRoster = {};
-            const select = document.getElementById('studentSelect');
-            select.innerHTML = '<option value="">-- Choose Your Name --</option>';
-
-            lines.forEach(line => {
-                if (!line.trim()) return;
-                const parts = line.split(',').map(p => p.trim());
-                if (parts.length >= 3) {
-                    const id = parts[0];
-                    const name = parts[1];
-                    const gpa = parseFloat(parts[2]);
-
-                    studentRoster[id] = { id, name, gpa, preferences: [] };
-
-                    const option = document.createElement('option');
-                    option.value = id;
-                    option.textContent = `${name} (ID: ${id})`;
-                    select.appendChild(option);
-                }
-            });
-
-            buildWishDropdowns();
-            document.getElementById('submitBtn').disabled = false;
-            alert('Roster and departments loaded successfully!');
-        }
-
-        function buildWishDropdowns() {
-            const container = document.getElementById('wishesContainer');
-            container.innerHTML = '<p><strong>Select Department Preferences in Order:</strong></p>';
-
-            departments.forEach((dept, idx) => {
-                const div = document.createElement('div');
-                div.className = 'form-group';
-
-                let options = `<option value="">-- Select Wish ${idx + 1} --</option>`;
-                departments.forEach(d => {
-                    options += `<option value="${d}">${d}</option>`;
-                });
-
-                div.innerHTML = `
-                    <label>Preference ${idx + 1}:</label>
-                    <select class="wish-select" required>${options}</select>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function submitStudentWishes(event) {
-            event.preventDefault();
-            const studentId = document.getElementById('studentSelect').value;
-
-            if (!studentId) {
-                alert("Please select a student name.");
-                return;
-            }
-
-            const selects = document.querySelectorAll('.wish-select');
-            const wishes = [];
-            selects.forEach(s => {
-                if (s.value) wishes.push(s.value);
-            });
-
-            if (new Set(wishes).size !== wishes.length) {
-                alert("Please select unique departments for each preference rank.");
-                return;
-            }
-
-            const studentData = { ...studentRoster[studentId], preferences: wishes };
-
-            // Send to Google Sheets via Apps Script Endpoint
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(studentData)
-            }).then(() => {
-                alert("Preferences successfully submitted and saved to Google Sheets!");
-            }).catch(err => {
-                console.error("Submission error:", err);
-                alert("Error sending data to Google Sheets.");
-            });
-
-            const existingIdx = submittedStudents.findIndex(s => s.id === studentId);
-            if (existingIdx !== -1) {
-                submittedStudents[existingIdx] = studentData;
-            } else {
-                submittedStudents.push(studentData);
-            }
-
-            renderSubmittedTable();
-            document.getElementById('studentForm').reset();
-        }
-
-        function renderSubmittedTable() {
-            const tbody = document.querySelector('#submittedTable tbody');
-            tbody.innerHTML = '';
-
-            submittedStudents.forEach(s => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${s.id}</td>
-                    <td>${s.name}</td>
-                    <td>${s.preferences.map((p, i) => `<span class="badge">${i+1}. ${p}</span>`).join(' ')}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('submittedCount').innerText = submittedStudents.length;
-        }
-
-        function fetchFromGoogleSheets() {
-            fetch(GOOGLE_SCRIPT_URL)
-                .then(res => res.json())
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        submittedStudents = data.map(item => {
-                            const foundRoster = studentRoster[item.id] || {};
-                            return {
-                                id: item.id,
-                                name: item.name,
-                                gpa: foundRoster.gpa || item.gpa || 0,
-                                preferences: Array.isArray(item.preferences) ? item.preferences : item.preferences.split(',').map(s => s.trim())
-                            };
-                        });
-                        renderSubmittedTable();
-                        alert('Synced ' + submittedStudents.length + ' records from Google Sheets!');
-                    }
-                })
-                .catch(err => {
-                    console.error("Sync error:", err);
-                    alert("Could not fetch Google Sheets data. Make sure your Apps Script doGet(e) endpoint returns JSON format.");
-                });
-        }
-
-        function runAllocation() {
-            if (submittedStudents.length === 0) {
-                alert("No students have submitted preferences yet.");
-                return;
-            }
-
-            const deptInputs = document.querySelectorAll('.dept-name');
-            const capInputs = document.querySelectorAll('.dept-cap');
-            const capacities = {};
-            const allocations = {};
-
-            deptInputs.forEach((input, i) => {
-                const name = input.value.trim();
-                const cap = parseInt(capInputs[i].value) || 0;
-                if (name) {
-                    capacities[name] = cap;
-                    allocations[name] = [];
-                }
-            });
-            allocations['Unassigned'] = [];
-
-            // Sort by GPA internally (GPA is omitted from UI display)
-            const sortedStudents = [...submittedStudents].sort((a, b) => b.gpa - a.gpa);
-
-            sortedStudents.forEach(student => {
-                let assigned = false;
-                for (let wish of student.preferences) {
-                    if (capacities[wish] !== undefined && allocations[wish].length < capacities[wish]) {
-                        allocations[wish].push(student);
-                        assigned = true;
-                        break;
-                    }
-                }
-                if (!assigned) {
-                    allocations['Unassigned'].push(student);
-                }
-            });
-
-            globalAllocations = allocations;
-
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '';
-
-            for (let dept in allocations) {
-                if (dept === 'Unassigned' && allocations[dept].length === 0) continue;
-
-                let html = `<h3>${dept} ${dept !== 'Unassigned' ? `(Capacity: ${allocations[dept].length}/${capacities[dept]})` : ''}</h3>`;
-                html += `<table>
-                            <tr>
-                                <th>Rank</th>
-                                <th>ID</th>
-                                <th>Name</th>
-                                ${dept === 'Unassigned' ? '<th>Submitted Wishes</th>' : ''}
-                            </tr>`;
-
-                allocations[dept].forEach((s, idx) => {
-                    html += `<tr>
-                                <td>${idx + 1}</td>
-                                <td>${s.id}</td>
-                                <td>${s.name}</td>
-                                ${dept === 'Unassigned' ? `<td class="unassigned-badge">${s.preferences.join(' &rarr; ')}</td>` : ''}
-                             </tr>`;
-                });
-
-                html += `</table>`;
-                resultsDiv.innerHTML += html;
-            }
-
-            document.getElementById('exportBtn').style.display = 'inline-block';
-        }
-
-        function exportToCSV() {
-            let csvContent = "data:text/csv;charset=utf-8,Department,Rank,Student ID,Student Name\n";
-
-            for (let dept in globalAllocations) {
-                globalAllocations[dept].forEach((s, idx) => {
-                    csvContent += `"${dept}","${idx + 1}","${s.id}","${s.name}"\n`;
-                });
-            }
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "final_department_allocations.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
-</body>
-</html>
+function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Submissions") || ss.getSheets()[0];
+  var data = JSON.parse(e.postData.contents);
+  
+  sheet.appendRow([
+    new Date(),
+    data.wave,
+    data.id,
+    data.name,
+    data.preferences.join(', ')
+  ]);
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({ "result": "success" }))
+    .mimeType(ContentService.MimeType.JSON);
+}
